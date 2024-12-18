@@ -1,0 +1,55 @@
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="KontzertuenErreserbak.MainPage">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <!-- Ezkerreko zutabea -->
+            <ColumnDefinition Width="*" />
+            <!-- Eskuineko zutabea -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Ezkerreko zutabea -->
+        <StackLayout Padding="10" VerticalOptions="Start" Margin="10">
+            <Frame BorderColor="Black" BackgroundColor="LightSlateGray" CornerRadius="10" Padding="10">
+                <StackLayout>
+                    <Label Text="Herriak" FontSize="Large" FontAttributes="Bold" />
+                    <RadioButton x:Name="BilbaoRadioButton" Content="Bilbao" Value="1" CheckedChanged="OnRadioButtonCheckedChanged" />
+                    <RadioButton x:Name="BartzelonaRadioButton" Content="Bartzelona" Value="2" CheckedChanged="OnRadioButtonCheckedChanged" />
+                    <RadioButton x:Name="MadridRadioButton" Content="Madrid" Value="3" CheckedChanged="OnRadioButtonCheckedChanged" />
+                </StackLayout>
+            </Frame>
+
+            <!-- Erreserba kontagailua -->
+            <Label x:Name="ErreserbaCountLabel" Text="" FontSize="Small" Margin="0,10,0,0" />
+
+
+        </StackLayout>
+
+        <!-- Eskuineko zutabea -->
+        <StackLayout Padding="10" Grid.Column="1" Margin="10">
+            <Label Text="Izena:" />
+            <Entry x:Name="IzenaEntry" Placeholder="Sartu zure izena" Margin="0,0,0,10"/>
+
+            <Label Text="Abizena:" />
+            <Entry x:Name="AbizenaEntry" Placeholder="Sartu zure abizena" Margin="0,0,0,10"/>
+
+            <Label Text="DNI:" />
+            <Entry x:Name="DniEntry" Placeholder="Sartu zure DNI-a" Margin="0,0,0,10"/>
+
+            <Label Text="Sarrera kantitatea:" />
+            <Entry x:Name="KantitateaEntry" Placeholder="Kantitatea" Keyboard="Numeric" Margin="0,0,0,10"/>
+
+            <!-- Erreserbatu botoia -->
+            <Button x:Name="btnErreserbatu" Text="Erreserbatu" Margin="0,10,0,0" BackgroundColor="Green" Clicked="btnErreserbatu_Clicked"/>
+        </StackLayout>
+
+        <!-- Atera botoia -->
+        <StackLayout VerticalOptions="EndAndExpand" HorizontalOptions="Center" Padding="10" Margin="20" Grid.ColumnSpan="2">
+            <Button x:Name="btnAtera" Text="Atera" Clicked="btnAtera_Clicked" BackgroundColor="Red" WidthRequest="200" HorizontalOptions="CenterAndExpand"/>
+        </StackLayout>
+
+    </Grid>
+
+</ContentPage>
