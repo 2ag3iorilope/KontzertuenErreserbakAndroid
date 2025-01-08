@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using KontzertuenErreserbak.Services;
 
 namespace KontzertuenErreserbak
@@ -17,11 +18,11 @@ namespace KontzertuenErreserbak
                     string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
                     // Datu basea fitxategiaren izena.
-                    //Aldaketa Ruta aldatu dut Androidean ez baita desktop
+                    //Aldaketa: Ruta aldatu dut Androidean ez baita desktop
                     string dbPath = Path.Combine(FileSystem.AppDataDirectory, "Kontzertuak.db3");
 
-
-                    // Datu basea iniciatu
+                    Debug.WriteLine($"Base de datos utilizada: {dbPath}");
+                    // Datu basea iniziatu
                     _database = new DatabaseService(dbPath);
                 }
                 return _database;

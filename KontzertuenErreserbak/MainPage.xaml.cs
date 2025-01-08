@@ -16,8 +16,10 @@ namespace KontzertuenErreserbak
         public MainPage()
         {
             InitializeComponent();
-             App.Database.AddSampleConcertsAsync();
-            App.Database.AddSampleReservationsAsync();
+
+            _ = App.Database.AddSampleConcertsAsync();
+            _ = App.Database.AddSampleReservationsAsync();
+            UpdateReservasLabel(1);
 
 
             IzenaEntry.TextChanged += izenaOndoSartu;
@@ -111,19 +113,16 @@ namespace KontzertuenErreserbak
         /// <param name="e"></param>
         private async void btnErreserbatu_Clicked(object sender, EventArgs e)
         {
-            int aforoTotala = await App.Database.GetAforoByConciertoIdAsync(selectedConciertoId);
+            // Obtener la cantidad total de reservas para el concierto seleccionado
             int erreserbaTotalaKant = await App.Database.SumReservasByConciertoAsync(selectedConciertoId);
-            int sarreraEskuragarri = aforoTotala - erreserbaTotalaKant;
 
+            // Mensajes de depuración para verificar los valores
+            Debug.WriteLine($"Reserva Total Cantidad: {erreserbaTotalaKant}");
+
+            // Verificar si la entrada de cantidad es válida
             if (!int.TryParse(KantitateaEntry.Text, out int eskatutakoKantitatea) || eskatutakoKantitatea <= 0)
             {
                 await DisplayAlert("Errorea", "Sarrera kantitate baliogabea.", "Ados");
-                return;
-            }
-
-            if (eskatutakoKantitatea > sarreraEskuragarri)
-            {
-                await DisplayAlert("Errorea", "Ez dago sarrera nahikorik eskuragarri.", "Ados");
                 return;
             }
 
@@ -138,24 +137,26 @@ namespace KontzertuenErreserbak
                     Kantitatea = eskatutakoKantitatea
                 };
 
-                // Erreserba gorde!
+                // Guardar la reserva en la base de datos
                 await App.Database.SaveReservaAsync(reserva);
 
-                // Sarrera kantitatea aktualizatuko du.
+                // Actualizar la cantidad total de reservas para el concierto seleccionado
                 erreserbaTotalaKant = await App.Database.SumReservasByConciertoAsync(selectedConciertoId);
-                sarreraEskuragarri = aforoTotala - erreserbaTotalaKant;
-                ErreserbaCountLabel.Text = sarreraEskuragarri > 0
-                    ? $"Sarrerak eskuragarri ➔ {sarreraEskuragarri}"
-                    : "Sold Out!";
 
-                // Botoia desgaitu.
-                btnErreserbatu.IsEnabled = sarreraEskuragarri > 0;
+                // Mensajes de depuración para verificar los valores actualizados
+                Debug.WriteLine($"Reserva Total Cantidad Actualizada: {erreserbaTotalaKant}");
 
-                // Mezua erabiltzaileari
+                // Actualizar la etiqueta para mostrar el número total de reservas
+                ErreserbaCountLabel.Text = $"Reservas totales: {erreserbaTotalaKant}";
+
+                // Mostrar mensaje de éxito al usuario
                 await DisplayAlert("Ongi!", "Erreserba ondo egin da", "Ados");
 
-                // Garbitu eremuak
+                // Limpiar los campos de entrada
                 garbituImput();
+
+                // Habilitar el botón de reserva si todos los campos están completos
+                erreserbaFormularioaBeteta();
             }
             catch (Exception ex)
             {
@@ -193,12 +194,30 @@ namespace KontzertuenErreserbak
             Application.Current.Quit();
         }
 
+
+         async void UpdateReservasLabel(int conciertoId)
+        {
+            int reservasDisponibles = await App.Database.GetAvailableReservationsAsync(conciertoId);
+
+            if (reservasDisponibles > 0)
+            {
+                ErreserbaCountLabel.Text = $"Reservas disponibles: {reservasDisponibles}";
+            }
+            else
+            {
+                ErreserbaCountLabel.Text = "Sold out";
+
+            }
+        }
+
+
+
         /// <summary>
         /// Erreserba formularioa beteta dagoen egiaztatuko duen funtzioa.
         /// </summary>
-        private async void erreserbaFormularioaBeteta()
+        private void erreserbaFormularioaBeteta()
         {
-
+            // Mensajes de depuración para verificar los valores de entrada
             Debug.WriteLine($"Izena: {IzenaEntry.Text}");
             Debug.WriteLine($"Abizena: {AbizenaEntry.Text}");
             Debug.WriteLine($"DNI: {DniEntry.Text} (Length: {DniEntry.Text?.Length})");
@@ -206,29 +225,15 @@ namespace KontzertuenErreserbak
             Debug.WriteLine($"selectedConciertoId: {selectedConciertoId}");
 
             bool isFormComplete =
-    !string.IsNullOrWhiteSpace(IzenaEntry.Text) &&
-    !string.IsNullOrWhiteSpace(AbizenaEntry.Text) &&
-    !string.IsNullOrWhiteSpace(DniEntry.Text) &&
-    DniEntry.Text.Length == 9 &&
-    !string.IsNullOrWhiteSpace(KantitateaEntry.Text) &&
-    selectedConciertoId != 0;
+                !string.IsNullOrWhiteSpace(IzenaEntry.Text) &&
+                !string.IsNullOrWhiteSpace(AbizenaEntry.Text) &&
+                !string.IsNullOrWhiteSpace(DniEntry.Text) &&
+                DniEntry.Text.Length == 9 &&
+                !string.IsNullOrWhiteSpace(KantitateaEntry.Text) &&
+                selectedConciertoId != 0;
 
-            if (isFormComplete)
-            {
-                int aforoTotala = await App.Database.GetAforoByConciertoIdAsync(selectedConciertoId);
-                int erreserbaTotalaKant = await App.Database.SumReservasByConciertoAsync(selectedConciertoId);
-                int sarreraEskuragarri = aforoTotala - erreserbaTotalaKant;
-
-                bool kantitateaOndo = int.TryParse(KantitateaEntry.Text, out int eskatutakoKantitatea) &&
-                                        eskatutakoKantitatea > 0 &&
-                                        eskatutakoKantitatea <= sarreraEskuragarri;
-
-                btnErreserbatu.IsEnabled = kantitateaOndo;
-            }
-            else
-            {
-                btnErreserbatu.IsEnabled = false;
-            }
+            // Habilitar el botón de reserva si todos los campos están completos
+            btnErreserbatu.IsEnabled = isFormComplete;
         }
 
         /// <summary>
@@ -244,14 +249,17 @@ namespace KontzertuenErreserbak
                 var radioButton = sender as RadioButton;
                 selectedConciertoId = int.Parse(radioButton.Value.ToString());
 
+                // Obtener el aforo total del concierto seleccionado
                 int aforoTotala = await App.Database.GetAforoByConciertoIdAsync(selectedConciertoId);
+                // Obtener la cantidad total de reservas para el concierto seleccionado
                 int erreserbaTotalaKant = await App.Database.SumReservasByConciertoAsync(selectedConciertoId);
-                int sarreraEskuragarri = aforoTotala - erreserbaTotalaKant;
 
-                // Label-a eguneratu
-                ErreserbaCountLabel.Text = sarreraEskuragarri > 0
-                    ? $"Sarrerak eskuragarri ➔ {sarreraEskuragarri}"
-                    : "Sold Out!";
+                // Mensajes de depuración para verificar los valores
+                Debug.WriteLine($"Aforo Total: {aforoTotala}");
+                Debug.WriteLine($"Reserva Total Cantidad: {erreserbaTotalaKant}");
+
+                // Actualizar la etiqueta para mostrar el número total de reservas
+                ErreserbaCountLabel.Text = $"Reservas totales: {erreserbaTotalaKant}";
 
                 // Formularioa beteta dagoen egiaztatu
                 erreserbaFormularioaBeteta();

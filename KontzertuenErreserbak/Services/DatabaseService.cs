@@ -24,6 +24,7 @@ namespace KontzertuenErreserbak.Services
 
             _database.CreateTableAsync<Kontzertua>().Wait();
             _database.CreateTableAsync<Erreserba>().Wait();
+           
         }
 
         /// <summary>
@@ -33,11 +34,12 @@ namespace KontzertuenErreserbak.Services
         /// <returns></returns>
         public Task<int> SaveConciertoAsync(Kontzertua concierto)
         {
-            lock (dbLock)
+           
             {
                 return _database.InsertAsync(concierto);
             }
         }
+       
 
         /// <summary>
         /// Datu-basean gordetako kontzertu guztiak lortzeko funtzioa
@@ -45,7 +47,7 @@ namespace KontzertuenErreserbak.Services
         /// <returns></returns>
         public Task<List<Kontzertua>> GetConciertosAsync()
         {
-            lock (dbLock)
+          
             {
                 return _database.Table<Kontzertua>().ToListAsync();
             }
@@ -58,7 +60,7 @@ namespace KontzertuenErreserbak.Services
         /// <returns></returns>
         public Task<int> SaveReservaAsync(Erreserba reserva)
         {
-            lock (dbLock)
+           
             {
                 // Erreserba berria datu-basean gehitu
                 return _database.InsertAsync(reserva);
@@ -70,15 +72,24 @@ namespace KontzertuenErreserbak.Services
         /// </summary>
         /// <param name="conciertoId"></param>
         /// <returns></returns>
-        public Task<List<Erreserba>> GetReservasByConciertoAsync(int conciertoId)
+        public async Task<List<Erreserba>> GetReservasByConciertoAsync(int conciertoId)
         {
-            lock (dbLock)
-            {
-                // Erreserba taulatik kontzertu horri dagozkion erreserbak bilatu
-                return _database.Table<Erreserba>()
-                                .Where(r => r.id_kontzertua == conciertoId)
-                                .ToListAsync();
-            }
+            return await _database.Table<Erreserba>()
+                                  .Where(r => r.id_kontzertua == conciertoId)
+                                  .ToListAsync();
+        }
+        public async Task<int> GetAvailableReservationsAsync(int conciertoId)
+        {
+            // Obtener el aforo del concierto
+            int aforo = await GetAforoByConciertoIdAsync(conciertoId);
+
+            // Obtener la suma de las reservas para el concierto
+            int totalReservas = await SumReservasByConciertoAsync(conciertoId);
+
+            // Calcular las reservas disponibles
+            int reservasDisponibles = aforo - totalReservas;
+
+            return reservasDisponibles;
         }
 
         /// <summary>
@@ -88,46 +99,44 @@ namespace KontzertuenErreserbak.Services
         /// <returns></returns>
         public Task<int> SumReservasByConciertoAsync(int conciertoId)
         {
-            lock (dbLock)
+           
             {
                 // Erreserba taulan kontzertu horren guztizko kantitatea kalkulatu
                 return _database.ExecuteScalarAsync<int>(
-                    "SELECT IFNULL(SUM(Kantitatea), 0) FROM Erreserba WHERE id_kontzertua = ?", conciertoId);
+                   "SELECT IFNULL(SUM(Kantitatea), 0) FROM Erreserba WHERE id_kontzertua = ?", conciertoId);
             }
         }
 
         //Aldaketa Kontzertuak Sortu bestela beti sold out agertzen da eta ez da botoia inoiz aktibatuko
         public async Task AddSampleConcertsAsync()
         {
-            lock (dbLock)
-            {
-                // Crear conciertos de ejemplo con las ciudades especificadas
-                var concierto1 = new Kontzertua { Herria = "Bilbao", Data = "2024-12-25", Aforoa = 100 };
-                var concierto2 = new Kontzertua { Herria = "Barcelona", Data = "2024-12-30", Aforoa = 50 };
-                var concierto3 = new Kontzertua { Herria = "Madrid", Data = "2024-12-31", Aforoa = 200 };
+            var concierto1 = new Kontzertua { Herria = "Bilbao", Data = "2024-12-25", Aforoa = 100 };
+            var concierto2 = new Kontzertua { Herria = "Barcelona", Data = "2024-12-30", Aforoa = 50 };
+            var concierto3 = new Kontzertua { Herria = "Madrid", Data = "2024-12-31", Aforoa = 200 };
 
-                // Añadir conciertos a la base de datos
-                _database.InsertAsync(concierto1).Wait();
-                _database.InsertAsync(concierto2).Wait();
-                _database.InsertAsync(concierto3).Wait();
-            }
+            await _database.InsertAsync(concierto1);
+            await _database.InsertAsync(concierto2);
+            await _database.InsertAsync(concierto3);
         }
-        //Aldaketa Erreserbak Sortu bestela beti sold out agertzen da eta ez da botoia inoiz aktibatuko
+
         public async Task AddSampleReservationsAsync()
         {
-            lock (dbLock)
-            {
-                // Crear algunas reservas
-                var reserva1 = new Erreserba { id_kontzertua = 1, Kantitatea = 50 };  // 50 reservas para el concierto de Bilbao
-                var reserva2 = new Erreserba { id_kontzertua = 2, Kantitatea = 30 };  // 30 reservas para el concierto de Barcelona
-                var reserva3 = new Erreserba { id_kontzertua = 3, Kantitatea = 150 }; // 150 reservas para el concierto de Madrid
+            var reserva1 = new Erreserba { id_kontzertua = 1, Kantitatea = 50 };
+            var reserva2 = new Erreserba { id_kontzertua = 2, Kantitatea = 30 };
+            var reserva3 = new Erreserba { id_kontzertua = 3, Kantitatea = 150 };
 
-                // Añadir reservas a la base de datos
-                _database.InsertAsync(reserva1).Wait();
-                _database.InsertAsync(reserva2).Wait();
-                _database.InsertAsync(reserva3).Wait();
-            }
+            if (await CanAddReservation(reserva1)) await _database.InsertAsync(reserva1);
+            if (await CanAddReservation(reserva2)) await _database.InsertAsync(reserva2);
+            if (await CanAddReservation(reserva3)) await _database.InsertAsync(reserva3);
         }
+
+        private async Task<bool> CanAddReservation(Erreserba reserva)
+        {
+            int aforoTotala = await GetAforoByConciertoIdAsync(reserva.id_kontzertua);
+            int erreserbaTotalaKant = await SumReservasByConciertoAsync(reserva.id_kontzertua);
+            return (erreserbaTotalaKant + reserva.Kantitatea) <= aforoTotala;
+        }
+        
 
         /// <summary>
         /// Kontzertu baten aforoa lortzeko funtzioa
@@ -136,7 +145,7 @@ namespace KontzertuenErreserbak.Services
         /// <returns></returns>
         public Task<int> GetAforoByConciertoIdAsync(int conciertoId)
         {
-            lock (dbLock)
+           
             {
                 // Kontzertua taulatik kontzertuaren aforoa bilatu
                 return _database.ExecuteScalarAsync<int>(
